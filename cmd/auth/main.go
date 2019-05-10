@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/blukai/auth.svc/pkg/handlers"
@@ -13,27 +14,34 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
-	"github.com/markbates/goth"
-	"github.com/markbates/goth/providers/discord"
-	"github.com/markbates/goth/providers/steam"
 )
 
 func main() {
-	goth.UseProviders(
-		steam.New(util.GetEnvOrDie("STEAM_KEY"), "http://localhost:3000/steam/callback"),
-		discord.New(os.Getenv("DISCORD_KEY"), os.Getenv("DISCORD_SECRET"), "http://localhost:3000/discord/callback", discord.ScopeIdentify),
-	)
+	version := flag.Bool("version", false, "show auth-svc version")
+	flag.Parse()
+	cmd := flag.Arg(0)
 
-	store, err := redis.NewStore(10, "tcp", "localhost:6379", "", []byte("secret"))
+	if *version || cmd == "version" {
+		fmt.Printf("version: x; repo: %s; commit: %s\n", Repo, Commit)
+		return
+	} else if cmd == "help" {
+		// TODO: proper usage
+		flag.Usage()
+		return
+	}
+
+	loadConfig()
+	registerProviders()
+
+	store, err := redis.NewStore(10, "tcp", config.RedisAddress, "", []byte(config.SessionSecret))
 	if err != nil {
-		log.Fatalf("could not create new redis store: %v", err)
+		log.Fatalf("could not create new redis store: %v\n", err)
 	}
 
 	router := gin.Default()
-
 	router.Use(
-		sessions.Sessions("id", store),
 		middleware.ProviderName(),
+		sessions.Sessions("id", store),
 	)
 
 	router.GET(":provider", handlers.Provider())
@@ -41,7 +49,10 @@ func main() {
 	router.GET(":provider/logout", handlers.ProviderLogout())
 	router.GET(":provider/user", handlers.ProviderUser())
 
-	server := &http.Server{Handler: router, Addr: ":3000"}
+	server := &http.Server{
+		Handler: router,
+		Addr:    config.ServiceHost + ":" + config.ServicePort,
+	}
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("listen %v\n", err)
@@ -50,6 +61,6 @@ func main() {
 
 	util.RegisterShutdown(5 * time.Second)
 	if err := server.Shutdown(context.Background()); err != nil {
-		log.Fatalf("failed to shutdown server gracefully: %v", err)
+		log.Fatalf("failed to shutdown server gracefully: %v\n", err)
 	}
 }
