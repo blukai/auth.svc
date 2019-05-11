@@ -11,6 +11,7 @@ import (
 	"github.com/blukai/auth.svc/pkg/handlers"
 	"github.com/blukai/auth.svc/pkg/middleware"
 	"github.com/blukai/auth.svc/pkg/util"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
@@ -34,12 +35,19 @@ func main() {
 	registerProviders()
 
 	store, err := redis.NewStore(10, "tcp", config.RedisAddress, "", []byte(config.SessionSecret))
+	// TODO: proper session config, security
 	if err != nil {
 		log.Fatalf("could not create new redis store: %v\n", err)
 	}
 
 	router := gin.Default()
 	router.Use(
+		cors.New(cors.Config{
+			AllowCredentials: true,
+			AllowOriginFunc: func(origin string) bool {
+				return true
+			},
+		}),
 		middleware.ProviderName(),
 		sessions.Sessions("id", store),
 	)
