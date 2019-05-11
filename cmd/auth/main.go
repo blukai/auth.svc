@@ -43,11 +43,9 @@ func main() {
 		middleware.ProviderName(),
 		sessions.Sessions("id", store),
 	)
-
-	router.GET(":provider", handlers.Provider())
-	router.GET(":provider/callback", handlers.ProviderCallback())
-	router.GET(":provider/logout", handlers.ProviderLogout())
-	router.GET(":provider/user", handlers.ProviderUser())
+	router.GET("/:provider", handlers.Root)
+	router.GET("/:provider/callback", handlers.ProviderCallback)
+	router.POST("/logout", handlers.Logout)
 
 	server := &http.Server{
 		Handler: router,

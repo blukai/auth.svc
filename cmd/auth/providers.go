@@ -8,24 +8,22 @@ import (
 	"github.com/markbates/goth/providers/steam"
 )
 
-var providers = map[string]goth.Provider{}
-
+// TODO: callback url
 func registerProviders() {
-	// TODO: callback url
-
+	i := 0
 	if config.SteamKey != "" {
+		i++
 		steam := steam.New(config.SteamKey, "http://localhost:3000/steam/callback")
 		goth.UseProviders(steam)
-		providers[steam.Name()] = steam
 	}
 
 	if config.DiscordKey != "" && config.DiscordSecret != "" {
+		i++
 		discord := discord.New(config.DiscordKey, config.DiscordSecret, "http://localhost:3000/discord/callback", discord.ScopeIdentify)
 		goth.UseProviders(discord)
-		providers[discord.Name()] = discord
 	}
 
-	if len(providers) == 0 {
+	if i == 0 {
 		log.Fatalf("no provivider key/secrets were providerd\n")
 	}
 }
